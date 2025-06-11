@@ -1,5 +1,54 @@
-[{
-    "query": "What are the symptoms of flu?"
-  },
-  {"query": "What causes migraines?"},
-  {"query": "Can I take ibuprofen for cold?"}]
+{
+  "name": "RAG Chatbot Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookPath": "rag-chatbot",
+      "httpMethod": "POST"
+    },
+    {
+      "parameters": {
+        "functionCode": "const query = $json[\"query\"] || \"\";\nreturn [{ json: { query: query.trim().toLowerCase() } }];"
+      },
+      "name": "Preprocess Query",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { searchVectorDB } = require('./scripts/utils.js');\nreturn await searchVectorDB($json[\"query\"]);"
+      },
+      "name": "Semantic Search",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { generateResponse } = require('./scripts/utils.js');\nreturn await generateResponse($json);"
+      },
+      "name": "LLM Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {},
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Preprocess Query", "type": "main", "index": 0 }]] },
+    "Preprocess Query": { "main": [[{ "node": "Semantic Search", "type": "main", "index": 0 }]] },
+    "Semantic Search": { "main": [[{ "node": "LLM Generator", "type": "main", "index": 0 }]] },
+    "LLM Generator": { "main": [[{ "node": "Return Response", "type": "main", "index": 0 }]] }
+  }
+}
